@@ -1,10 +1,9 @@
 <!DOCTYPE html>
 <head>
   <meta name="viewport" content="user-scalable=no">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.css">
   <link rel="stylesheet" href="unique-clock.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/webfont/1.6.27/webfontloader.js"></script>
+  <script type="text/javascript" src="contents.js"></script>
+
 </head>
 
 <body>
@@ -29,13 +28,15 @@
   </div>
 
   <i class="fa fa-volume-up speaker"></i>
-  <audio id="music" src="uniqlock.mp3" autoplay loop></audio>
+  <audio id="music" src="music/0.mp3" autoplay loop></audio>
 
   <div id="video-container" class="layer layer--animatable">
-    <video id="video" class="layer--animatable-child" src="http://media4.giphy.com/media/11oRLY4FRk2s36/giphy.mp4" loop muted></video>
+    <video id="video" class="layer--animatable-child" src="video/season1/5sec_1.webm" loop muted></video>
   </div>
 
   <script>
+	var firstPlay = true;
+	var day = true;
     var speaker = document.querySelector('.speaker');
     var music = document.getElementById('music');
     speaker.addEventListener('click', () => {
@@ -47,7 +48,10 @@
     music.addEventListener('canplaythrough', () => {
       music.play();
       lastDate = Date.now();
-      setTimeout(() => setInterval(tick, 1000), 150);
+	  if (firstPlay === true){
+        setTimeout(() => setInterval(tick, 1000), 50);
+		firstPlay = false;
+	  }
     });
 
     var timeOverlay = document.getElementById('time-overlay');
@@ -62,7 +66,11 @@
       var date = new Date();
       // We use a regex here to get the time from localeTimeString() because some languages don't use AM/PM. For
       // example, zh-cn returns '下午2:46:52', ms-my returns '2:46:51 PTG', and ko-kr returns '오후 2:46:51'.
-      var matches = date.toLocaleTimeString().match(/\d{1,2}:\d{2}:\d{2}/g);
+	  
+	  // I left the regex checking in place, but have defaulted everything to match the original clock.
+	  // 'ja' locale always returns 24-hour time.
+	  
+      var matches = date.toLocaleTimeString('ja').match(/\d{1,2}:\d{2}:\d{2}/g);
       // Need to check if there's a match because some locales use non-Arabic numbers. For example, ar-dz returns
       // '٢:٤٦:٥١ م', mr returns '२:४६:५१ म.उ', and fa returns '۱۴:۴۶:۵۱'. We're just not going to support these
       // locales as a design choice due to their very unlikely usage.
@@ -72,6 +80,8 @@
       var hour = timeSegments[0];
       var minute = timeSegments[1];
       var second = timeSegments[2];
+
+	  day = isDay(hours[0].textContent);  // Every tick checks if daytime or nighttime music/videos should play.
 
       hours.forEach((hourEl) => hourEl.textContent = (hour.length == 1) ? '0' + hour : hour);
       minutes.forEach((minuteEl) => minuteEl.textContent = minute);
@@ -89,11 +99,16 @@
     var animationTimer = -1;
     var cycleTimer = -1;
     var isFirstCycle = true;
+	var hourly = false;
 
     function moveOverlayTime() {
       animationTimer = (animationTimer + 1) % 4;
       cycleTimer = (cycleTimer + 1) % 10;
-
+	  
+	  if (minutes[0].textContent == 0 || isFirstCycle) {
+		document.getElementById('time-static').style.color = rawColors[hours[0].textContent];
+		document.getElementById('time-overlay').style.backgroundColor = rawColors[hours[0].textContent];
+	  }
       if ((cycleTimer >= 0 && cycleTimer <= 3)) {
         isFirstCycle = false;
         var animationClass = getAnimationClass(animationTimer);
@@ -110,9 +125,13 @@
         videoContainer.addEventListener('animationend', function onAnimationEnd() {
           video.pause();
           videoContainer.removeEventListener('animationend', onAnimationEnd);
-          getNewVideo().then((result) => video.src = result.data.image_mp4_url);
+		  console.log(video.src = getVideo());
         })
       }
+	  if (seconds[1].textContent == 0) {
+		  console.log(music.src = getMusic());
+		  music.play();
+	  }
     }
 
     function getAnimationClass(animationTimer) {
@@ -136,25 +155,43 @@
       element.previousAnimationClass = animationClass;
     }
 
-    function getNewVideo() {
-      return new Promise((resolve, reject) => {
-        var xhr = new XMLHttpRequest();
-        xhr.open('GET', 'http://api.giphy.com/v1/gifs/random?api_key=dc6zaTOxFJmzC&tag=funny');
-        xhr.responseType = 'json';
-        xhr.send();
+	function getMusic() {
+		if (day) {  // Function pulls day music during day, night music during night.
+			console.log("day");
+			return "music/" + song["day"][randomInt(0,song["day"].length - 1)];			
+		} else {
+			console.log("night");
+			return "music/" + song["night"][randomInt(0,song["night"].length - 1)];
+		}
+	}
 
-        xhr.onreadystatechange = function() {
-          if (xhr.readyState == XMLHttpRequest.DONE) {
-            if (xhr.status == 200) {
-              resolve(xhr.response);
-            }
-            else {
-               reject(xhr);
-            }
-          }
-        }
-      });
-    }
+	function getVideo() {  //Function pulls day videos during day, night videos during night.
+		var season = randomInt(1, vid.length - 1);	
+		if (day) {
+			return "video/season" + season + "/" + vid[season]["day"][randomInt(0,vid[season]["day"].length - 1)];			
+		} else {
+			while (vid[season]["night"] === null) {
+				var season = randomInt(1, vid.length - 1);	
+			}
+			return "video/season" + season + "/" + vid[season]["night"][randomInt(0,vid[season]["night"].length - 1)];
+		}
+	}
+	
+	// giphy functionality removed.
+	
+	function randomInt(min, max) {
+		min = parseInt(min);
+		max = parseInt(max);
+		return Math.floor(min + Math.random() * (max - min + 1));
+	}
+	
+	function isDay(hour) {
+		if (hour > 7 && hour < 20) {
+			return true;
+		} else {
+			return false;
+		}
+	}
 
     function tick() {
       // Delay the setTime() call so that it runs when the swipe animation is approximately 50% done.
