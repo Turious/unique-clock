@@ -106,8 +106,8 @@
       cycleTimer = (cycleTimer + 1) % 10;
 	  
 	  if (minutes[0].textContent == 0 || isFirstCycle) {
-		document.getElementById('time-static').style.color = rawColors[hours[0].textContent];
-		document.getElementById('time-overlay').style.backgroundColor = rawColors[hours[0].textContent];
+		document.getElementById('time-static').style.color = rawColors[parseInt(hours[0].textContent)];
+		document.getElementById('time-overlay').style.backgroundColor = rawColors[parseInt(hours[0].textContent)];
 	  }
       if ((cycleTimer >= 0 && cycleTimer <= 3)) {
         isFirstCycle = false;
